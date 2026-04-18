@@ -1,1 +1,119 @@
-
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Lügendetektor</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="blob blob-1"></div>
+<div class="blob blob-2"></div>
+ 
+<div class="screen" id="screenHome">
+  <div class="card">
+ 
+    <div class="logo">
+      <div class="logo-eyebrow">/// Trinkspiel</div>
+      <div class="logo-title">LÜGEN<br><span class="accent">DETEKTOR</span></div>
+      <div class="logo-sub">Wer lügt — wer säuft. Ihr entscheidet.</div>
+    </div>
+ 
+    <div class="section">
+      <span class="section-label">Dein Name</span>
+      <input type="text" id="playerName" placeholder="Wie heißt du?" maxlength="16" autocomplete="off" />
+    </div>
+ 
+    <button class="btn btn-primary" onclick="goCreate()">Lobby erstellen</button>
+ 
+    <div class="divider"><span>oder</span></div>
+ 
+    <div class="section" style="margin-bottom:0">
+      <span class="section-label">Lobby-Code eingeben</span>
+      <div class="input-row">
+        <input type="text" id="joinCode" placeholder="z.B. 4829" maxlength="6"
+          style="text-transform:uppercase; letter-spacing:0.15em; font-family:var(--mono); font-size:18px;"
+          autocomplete="off" />
+        <button class="btn btn-icon" onclick="goJoin()">→</button>
+      </div>
+      <div class="error" id="joinError">Code nicht gefunden</div>
+    </div>
+ 
+  </div>
+</div>
+ 
+<!-- Firebase -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getDatabase, ref, set, get, push, onValue, update }
+    from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+ 
+  // ── FIREBASE CONFIG ─────────────────────────────────────────────────
+  // TODO: Ersetze dies mit deiner eigenen Firebase-Konfiguration!
+  // 1. Gehe auf https://console.firebase.google.com
+  // 2. Neues Projekt erstellen → Realtime Database aktivieren
+  // 3. Projekteinstellungen → Deine Apps → Web-App hinzufügen
+  // 4. Die Konfiguration unten ersetzen
+  const firebaseConfig = {
+    apiKey: "DEIN_API_KEY",
+    authDomain: "DEIN_PROJEKT.firebaseapp.com",
+    databaseURL: "https://DEIN_PROJEKT-default-rtdb.firebaseio.com",
+    projectId: "DEIN_PROJEKT",
+    storageBucket: "DEIN_PROJEKT.appspot.com",
+    messagingSenderId: "DEINE_ID",
+    appId: "DEINE_APP_ID"
+  };
+  // ────────────────────────────────────────────────────────────────────
+ 
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
+  window._db = db;
+  window._ref = ref;
+  window._set = set;
+  window._get = get;
+  window._push = push;
+  window._onValue = onValue;
+  window._update = update;
+ 
+  // Check URL params for auto-join
+  const params = new URLSearchParams(window.location.search);
+  const codeParam = params.get('code');
+  if (codeParam) {
+    document.getElementById('joinCode').value = codeParam.toUpperCase();
+  }
+</script>
+ 
+<script>
+  function getName() {
+    return document.getElementById('playerName').value.trim();
+  }
+ 
+  function goCreate() {
+    const name = getName();
+    if (!name) { alert('Bitte deinen Namen eingeben!'); return; }
+    sessionStorage.setItem('lg_name', name);
+    sessionStorage.setItem('lg_role', 'host');
+    window.location.href = 'lobby.html';
+  }
+ 
+  function goJoin() {
+    const name = getName();
+    if (!name) { alert('Bitte deinen Namen eingeben!'); return; }
+    const code = document.getElementById('joinCode').value.trim().toUpperCase();
+    if (!code) { alert('Bitte einen Code eingeben!'); return; }
+    sessionStorage.setItem('lg_name', name);
+    sessionStorage.setItem('lg_role', 'guest');
+    sessionStorage.setItem('lg_code', code);
+    window.location.href = 'lobby.html?code=' + code;
+  }
+ 
+  document.getElementById('joinCode').addEventListener('keydown', e => {
+    if (e.key === 'Enter') goJoin();
+  });
+  document.getElementById('playerName').addEventListener('keydown', e => {
+    if (e.key === 'Enter') document.getElementById('joinCode').focus();
+  });
+</script>
+</body>
+</html>
+ 
