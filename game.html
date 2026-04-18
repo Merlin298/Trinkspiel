@@ -147,15 +147,19 @@
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
   import { getDatabase, ref, onValue, update, get, set }
     from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+   import { initializeApp } from "firebase/app";
+   import { getAnalytics } from "firebase/analytics";
  
   const firebaseConfig = {
-    apiKey: "DEIN_API_KEY",
-    authDomain: "DEIN_PROJEKT.firebaseapp.com",
-    databaseURL: "https://DEIN_PROJEKT-default-rtdb.firebaseio.com",
-    projectId: "DEIN_PROJEKT",
-    storageBucket: "DEIN_PROJEKT.appspot.com",
-    messagingSenderId: "DEINE_ID",
-    appId: "DEINE_APP_ID"
+    apiKey: "AIzaSyAglO0zzB_rKNnKdtVa947OjoP4T4L-XI8",
+    authDomain: "trinkkkultur.firebaseapp.com",
+    databaseURL: "https://trinkkkultur-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "trinkkkultur",
+    storageBucket: "trinkkkultur.firebasestorage.app",
+    messagingSenderId: "901152784015",
+    appId: "1:901152784015:web:eb32d8175d22f007693afa",
+    measurementId: "G-2BXM8L95F6"
   };
  
   const app = initializeApp(firebaseConfig);
