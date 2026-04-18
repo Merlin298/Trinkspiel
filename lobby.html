@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Lügendetektor – Lobby</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="blob blob-1"></div>
+<div class="blob blob-2"></div>
+ 
+<div class="screen">
+  <div class="card">
+ 
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:24px;">
+      <button class="btn-ghost" onclick="leaveLobby()">← Verlassen</button>
+      <div style="font-family:var(--mono); font-size:11px; color:var(--muted);" id="lobbyStatus">Warte auf Spieler...</div>
+    </div>
+ 
+    <!-- Code box -->
+    <div class="lobby-code-box">
+      <div class="lobby-code-label">Lobby-Code</div>
+      <div class="lobby-code" id="lobbyCode">----</div>
+      <div class="lobby-code-hint">Andere tippen diesen Code auf der Startseite ein</div>
+    </div>
+ 
+    <!-- Player list -->
+    <div class="section">
+      <span class="section-label">Spieler <span id="playerCount" style="color:var(--red)">0</span></span>
+      <div class="waiting-list" id="waitingList"></div>
+    </div>
+ 
+    <!-- Settings – only visible for host -->
+    <div id="hostSettings" style="display:none">
+ 
+      <div class="section">
+        <span class="section-label">Kategorie</span>
+        <div class="chips" id="catChips">
+          <button class="chip active" data-val="harmlos" onclick="selectChip(this,'catChips')">😇 Harmlos</button>
+          <button class="chip" data-val="cringe" onclick="selectChip(this,'catChips')">😬 Cringe</button>
+          <button class="chip" data-val="18+" onclick="selectChip(this,'catChips')">🔥 18+</button>
+        </div>
+      </div>
+ 
+      <div class="section">
+        <span class="section-label">Runden</span>
+        <div class="chips" id="roundChips">
+          <button class="chip" data-val="5" onclick="selectChip(this,'roundChips')">5</button>
+          <button class="chip active" data-val="10" onclick="selectChip(this,'roundChips')">10</button>
+          <button class="chip" data-val="15" onclick="selectChip(this,'roundChips')">15</button>
+        </div>
+      </div>
+ 
+      <div class="section">
+        <span class="section-label">Lügner pro Runde</span>
+        <div class="chips" id="liarChips">
+          <button class="chip active" data-val="1" onclick="selectChip(this,'liarChips')">1 Lügner</button>
+          <button class="chip" data-val="2" onclick="selectChip(this,'liarChips')">2 Lügner</button>
+        </div>
+      </div>
+ 
+      <div class="error" id="startError" style="text-align:center; margin-bottom:8px;"></div>
+      <button class="btn btn-primary" id="btnStart" onclick="startGame()">Spiel starten</button>
+    </div>
+ 
+    <!-- Guest view -->
+    <div id="guestView" style="display:none; text-align:center; padding: 16px 0;">
+      <div class="spinner" style="margin: 0 auto 12px;"></div>
+      <p style="color:var(--muted); font-size:14px;">Warte bis der Host das Spiel startet...</p>
+    </div>
+ 
+  </div>
+</div>
+ 
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getDatabase, ref, set, get, onValue, update, push, remove }
+    from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+ 
+  const firebaseConfig = {
+    apiKey: "DEIN_API_KEY",
+    authDomain: "DEIN_PROJEKT.firebaseapp.com",
+    databaseURL: "https://DEIN_PROJEKT-default-rtdb.firebaseio.com",
+    projectId: "DEIN_PROJEKT",
+    storageBucket: "DEIN_PROJEKT.appspot.com",
+    messagingSenderId: "DEINE_ID",
+    appId: "DEINE_APP_ID"
+  };
+ 
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
+ 
+  const myName = sessionStorage.getItem('lg_name');
+  const myRole = sessionStorage.getItem('lg_role');
+ 
+  if (!myName) { window.location.href = 'index.html'; }
+ 
+  let lobbyCode = '';
+  let myId = sessionStorage.getItem('lg_playerId') || generateId();
+  sessionStorage.setItem('lg_playerId', myId);
+ 
+  function generateId() {
+    return Math.random().toString(36).slice(2, 9);
+  }
+ 
+  function generateCode() {
+    return Math.floor(1000 + Math.random() * 9000).toString();
+  }
+ 
+  // ── HOST: create lobby ──────────────────────────────────────────────
+  if (myRole === 'host') {
+    lobbyCode = generateCode();
+    sessionStorage.setItem('lg_code', lobbyCode);
+    document.getElementById('lobbyCode').textContent = lobbyCode;
+    document.getElementById('hostSettings').style.display = 'block';
+ 
+    const lobbyRef = ref(db, 'lobbies/' + lobbyCode);
+    set(lobbyRef, {
+      host: myId,
+      status: 'waiting',
+      category: 'harmlos',
+      rounds: 10,
+      liarCount: 1,
+      currentRound: 1,
+      phase: 'waiting'
+    });
+ 
+    // Add self as player
+    set(ref(db, 'lobbies/' + lobbyCode + '/players/' + myId), {
+      name: myName,
+      isHost: true,
+      joinedAt: Date.now(),
+      score: 0
+    });
+ 
+    // Sync settings to Firebase on chip change
+    window.onSettingsChange = () => {
+      update(ref(db, 'lobbies/' + lobbyCode), {
+        category: getChip('catChips'),
+        rounds: parseInt(getChip('roundChips')),
+        liarCount: parseInt(getChip('liarChips'))
+      });
+    };
+ 
+  } else {
+    // ── GUEST: join lobby ─────────────────────────────────────────────
+    lobbyCode = (new URLSearchParams(window.location.search).get('code')
+      || sessionStorage.getItem('lg_code') || '').toUpperCase();
+ 
+    document.getElementById('lobbyCode').textContent = lobbyCode;
+    document.getElementById('guestView').style.display = 'block';
+ 
+    if (!lobbyCode) { alert('Kein Code gefunden!'); window.location.href='index.html'; }
+ 
+    // Check lobby exists
+    get(ref(db, 'lobbies/' + lobbyCode)).then(snap => {
+      if (!snap.exists()) {
+        alert('Lobby nicht gefunden! Überprüfe den Code.');
+        window.location.href = 'index.html';
+        return;
+      }
+      // Join
+      set(ref(db, 'lobbies/' + lobbyCode + '/players/' + myId), {
+        name: myName,
+        isHost: false,
+        joinedAt: Date.now(),
+        score: 0
+      });
+    });
+  }
+ 
+  // ── LISTEN for lobby changes ──────────────────────────────────────
+  onValue(ref(db, 'lobbies/' + lobbyCode), (snap) => {
+    if (!snap.exists()) return;
+    const data = snap.val();
+ 
+    // Render players
+    const players = data.players ? Object.entries(data.players) : [];
+    document.getElementById('playerCount').textContent = players.length;
+    document.getElementById('waitingList').innerHTML = players
+      .sort((a,b) => a[1].joinedAt - b[1].joinedAt)
+      .map(([id, p]) => `
+        <div class="waiting-player">
+          <div class="waiting-dot ${p.isHost ? 'host' : ''}"></div>
+          <span class="waiting-name">${p.name}</span>
+          <span class="waiting-badge">${p.isHost ? 'HOST' : 'Spieler'}</span>
+        </div>
+      `).join('');
+ 
+    // If game started → go to game
+    if (data.status === 'playing') {
+      sessionStorage.setItem('lg_code', lobbyCode);
+      window.location.href = 'game.html';
+    }
+  });
+ 
+  // ── START GAME ───────────────────────────────────────────────────
+  window.startGame = () => {
+    const snap_ref = ref(db, 'lobbies/' + lobbyCode + '/players');
+    get(snap_ref).then(snap => {
+      const count = snap.exists() ? Object.keys(snap.val()).length : 0;
+      const liarCount = parseInt(getChip('liarChips'));
+ 
+      if (count < 2) {
+        showErr('Mindestens 2 Spieler nötig!'); return;
+      }
+      if (count <= liarCount) {
+        showErr('Zu wenige Spieler für diese Lügner-Anzahl!'); return;
+      }
+ 
+      update(ref(db, 'lobbies/' + lobbyCode), {
+        status: 'playing',
+        category: getChip('catChips'),
+        rounds: parseInt(getChip('roundChips')),
+        liarCount,
+        currentRound: 1,
+        phase: 'roles'
+      });
+    });
+  };
+ 
+  function showErr(msg) {
+    const el = document.getElementById('startError');
+    el.textContent = msg;
+    el.classList.add('show');
+  }
+ 
+  window.leaveLobby = () => {
+    remove(ref(db, 'lobbies/' + lobbyCode + '/players/' + myId));
+    window.location.href = 'index.html';
+  };
+</script>
+ 
+<script>
+  function selectChip(btn, groupId) {
+    document.querySelectorAll('#' + groupId + ' .chip').forEach(c => c.classList.remove('active'));
+    btn.classList.add('active');
+    if (window.onSettingsChange) window.onSettingsChange();
+  }
+ 
+  function getChip(groupId) {
+    return document.querySelector('#' + groupId + ' .chip.active')?.dataset.val;
+  }
+</script>
+</body>
+</html>
