@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Lügendetektor – Spiel</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="blob blob-1"></div>
+<div class="blob blob-2"></div>
+ 
+<!-- HUD -->
+<div class="hud" id="hud" style="display:none">
+  <div class="hud-left">
+    <span class="hud-round" id="hudRound">Runde 1/10</span>
+    <span class="hud-phase" id="hudPhase">ROLLEN</span>
+  </div>
+  <span class="hud-players" id="hudPlayers"></span>
+</div>
+ 
+<!-- ── PHASE: ROLES ─────────────────────── -->
+<div class="phase" id="phaseRoles">
+  <div class="phase-inner">
+    <div class="ptag-pill blue"><span class="dot"></span>Runde <span id="roleRoundNum">1</span></div>
+    <h2 class="phase-h">Deine Rolle</h2>
+    <p class="phase-sub">Tippe auf die Karte um deine geheime Rolle zu sehen. Dann gib das Handy weiter.</p>
+ 
+    <div class="reveal-card" id="revealCard" onclick="flipReveal()">
+      <div class="reveal-front" id="revealFront">
+        <div class="reveal-avatar" id="revealAvatar">?</div>
+        <div class="reveal-name-big" id="revealNameBig">–</div>
+        <div class="reveal-tap-hint">// TIPPEN ZUM AUFDECKEN</div>
+      </div>
+      <div class="reveal-back" id="revealBack">
+        <div class="role-big" id="roleBig">–</div>
+        <div class="role-desc" id="roleDesc">–</div>
+        <button class="btn btn-secondary" style="margin-top:8px; max-width:200px" onclick="event.stopPropagation(); nextReveal()">
+          Verstanden ✓
+        </button>
+      </div>
+    </div>
+ 
+    <div class="reveal-progress-dots" id="revealDots"></div>
+    <p style="font-family:var(--mono); font-size:11px; color:var(--muted);" id="revealCounter"></p>
+  </div>
+</div>
+ 
+<!-- ── PHASE: QUESTION ──────────────────── -->
+<div class="phase" id="phaseQuestion">
+  <div class="phase-inner">
+    <div class="ptag-pill amber"><span class="dot"></span>Frage</div>
+    <h2 class="phase-h">Die Frage</h2>
+ 
+    <div class="question-card" id="questionCard">
+      <div class="question-loading" id="qLoading">
+        <div class="spinner"></div>
+        <span>Generiere Frage...</span>
+      </div>
+      <p class="question-text" id="qText" style="display:none"></p>
+    </div>
+ 
+    <p class="phase-sub">Jeder antwortet reihum laut mit <strong style="color:var(--text)">Ja</strong> oder <strong style="color:var(--text)">Nein</strong>.</p>
+ 
+    <div class="order-strip" id="orderStrip"></div>
+ 
+    <button class="btn btn-primary w-full" id="btnStartDiscuss" style="display:none" onclick="hostAction('startDiscuss')">
+      Diskussion starten →
+    </button>
+    <p class="phase-sub" id="waitDiscuss" style="display:none; font-size:13px;">Warte auf Host...</p>
+  </div>
+</div>
+ 
+<!-- ── PHASE: DISCUSS ───────────────────── -->
+<div class="phase" id="phaseDiscuss">
+  <div class="phase-inner">
+    <div class="ptag-pill amber"><span class="dot"></span>Diskussion</div>
+    <h2 class="phase-h">Wer lügt?</h2>
+ 
+    <p class="discuss-q" id="discussQ"></p>
+ 
+    <div class="timer-wrap">
+      <svg class="timer-svg" viewBox="0 0 150 150">
+        <circle cx="75" cy="75" r="55" class="timer-track"/>
+        <circle cx="75" cy="75" r="55" class="timer-arc" id="timerArc"/>
+      </svg>
+      <div class="timer-num" id="timerNum">60</div>
+    </div>
+ 
+    <p class="phase-sub">Diskutiert! Stellt Fragen, werft Verdacht.</p>
+ 
+    <button class="btn btn-secondary" id="btnSkipTimer" style="display:none" onclick="hostAction('skipTimer')">Überspringen</button>
+  </div>
+</div>
+ 
+<!-- ── PHASE: VOTE ──────────────────────── -->
+<div class="phase" id="phaseVote">
+  <div class="phase-inner">
+    <div class="ptag-pill red"><span class="dot"></span>Voting</div>
+    <h2 class="phase-h">Wer war's?</h2>
+    <p class="phase-sub">Tippe auf den Namen, den du für den Lügner hältst.</p>
+ 
+    <div class="vote-grid" id="voteGrid"></div>
+ 
+    <p class="voted-label" id="voteStatus"></p>
+ 
+    <!-- Waiting for others after voting -->
+    <div id="waitingVotes" style="display:none; width:100%">
+      <div class="waiting-avatars" id="voteAvatars"></div>
+      <p style="font-size:13px; color:var(--muted); margin-top:12px;" id="voteCountLabel"></p>
+    </div>
+  </div>
+</div>
+ 
+<!-- ── PHASE: RESULT ────────────────────── -->
+<div class="phase" id="phaseResult">
+  <div class="phase-inner">
+    <div class="ptag-pill" id="resultPill"><span class="dot"></span><span id="resultPillText">Ergebnis</span></div>
+    <div class="result-big" id="resultBig">–</div>
+ 
+    <div class="result-card" id="resultCard"></div>
+ 
+    <div class="liar-reveal" id="liarReveal"></div>
+ 
+    <button class="btn btn-primary w-full" id="btnNextRound" style="display:none" onclick="hostAction('nextRound')">
+      Nächste Runde →
+    </button>
+    <button class="btn btn-primary w-full" id="btnShowEnd" style="display:none" onclick="hostAction('showEnd')">
+      Endstand sehen →
+    </button>
+    <p class="phase-sub" id="waitNext" style="display:none; font-size:13px;">Warte auf Host...</p>
+  </div>
+</div>
+ 
+<!-- ── PHASE: END ────────────────────────── -->
+<div class="phase" id="phaseEnd">
+  <div class="phase-inner">
+    <div class="ptag-pill blue"><span class="dot"></span>Game Over</div>
+    <h2 class="phase-h">Abend vorbei!</h2>
+    <p class="phase-sub">Die finale Bilanz:</p>
+    <div class="score-list" id="finalScores"></div>
+    <button class="btn btn-primary w-full mt-4" onclick="window.location.href='index.html'">Neue Runde</button>
+  </div>
+</div>
+ 
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getDatabase, ref, onValue, update, get, set }
+    from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+ 
+  const firebaseConfig = {
+    apiKey: "DEIN_API_KEY",
+    authDomain: "DEIN_PROJEKT.firebaseapp.com",
+    databaseURL: "https://DEIN_PROJEKT-default-rtdb.firebaseio.com",
+    projectId: "DEIN_PROJEKT",
+    storageBucket: "DEIN_PROJEKT.appspot.com",
+    messagingSenderId: "DEINE_ID",
+    appId: "DEINE_APP_ID"
+  };
+ 
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
+  window._db = db;
+  window._ref = ref;
+  window._update = update;
+  window._get = get;
+  window._set = set;
+ 
+  const myName = sessionStorage.getItem('lg_name');
+  const myId   = sessionStorage.getItem('lg_playerId');
+  const code   = sessionStorage.getItem('lg_code');
+ 
+  if (!myName || !code) { window.location.href = 'index.html'; }
+ 
+  window._code = code;
+  window._myId = myId;
+  window._myName = myName;
+ 
+  const CIRC = 2 * Math.PI * 55;
+  let timerInterval = null;
+  let currentPhase  = '';
+  let lobbyData     = {};
+  let revealIndex   = 0;
+  let myVote        = null;
+  let hasVoted      = false;
+ 
+  // ── LISTEN ──────────────────────────────────────────────────────
+  onValue(ref(db, 'lobbies/' + code), snap => {
+    if (!snap.exists()) { window.location.href = 'index.html'; return; }
+    const data = snap.val();
+    lobbyData = data;
+ 
+    const players = data.players ? Object.values(data.players) : [];
+    const isHost  = data.host === myId;
+ 
+    // HUD
+    document.getElementById('hud').style.display = 'flex';
+    document.getElementById('hudRound').textContent = `Runde ${data.currentRound}/${data.rounds}`;
+    document.getElementById('hudPhase').textContent = phaseLabel(data.phase);
+    document.getElementById('hudPlayers').textContent = players.length + ' Spieler';
+ 
+    if (data.phase !== currentPhase) {
+      currentPhase = data.phase;
+      switchPhase(data, players, isHost);
+    }
+ 
+    // Live updates within a phase
+    if (data.phase === 'vote') {
+      updateVoteAvatars(data, players);
+    }
+  });
+ 
+  function phaseLabel(p) {
+    const map = { roles:'ROLLEN', question:'FRAGE', discuss:'DISKUSSION', vote:'VOTING', result:'ERGEBNIS', end:'ENDE' };
+    return map[p] || p.toUpperCase();
+  }
+ 
+  // ── PHASE SWITCH ────────────────────────────────────────────────
+  function switchPhase(data, players, isHost) {
+    clearInterval(timerInterval);
+    const phases = ['phaseRoles','phaseQuestion','phaseDiscuss','phaseVote','phaseResult','phaseEnd'];
+    phases.forEach(p => document.getElementById(p).classList.remove('active'));
+ 
+    if (data.phase === 'roles')    setupRoles(data, players, isHost);
+    if (data.phase === 'question') setupQuestion(data, players, isHost);
+    if (data.phase === 'discuss')  setupDiscuss(data, isHost);
+    if (data.phase === 'vote')     setupVote(data, players, isHost);
+    if (data.phase === 'result')   setupResult(data, players, isHost);
+    if (data.phase === 'end')      setupEnd(data, players);
+  }
+ 
+  // ── ROLES ────────────────────────────────────────────────────────
+  function setupRoles(data, players, isHost) {
+    document.getElementById('phaseRoles').classList.add('active');
+    document.getElementById('roleRoundNum').textContent = data.currentRound;
+    hasVoted = false;
+    myVote = null;
+ 
+    // Assign roles (host does it, stores in Firebase)
+    if (isHost) {
+      const shuffled = [...players].sort(() => Math.random() - 0.5);
+      const roles = {};
+      players.forEach(p => roles[p.name] = 'wahr');
+      shuffled.slice(0, data.liarCount).forEach(p => roles[p.name] = 'luege');
+      update(ref(db, 'lobbies/' + code), { roles, revealIndex: 0 });
+    }
+ 
+    revealIndex = 0;
+    showReveal(data, players, 0, isHost);
+ 
+    // Dots
+    const dots = document.getElementById('revealDots');
+    dots.innerHTML = players.sort((a,b)=>a.joinedAt-b.joinedAt)
+      .map((_,i) => `<div class="rdot ${i===0?'active':''}" id="dot-${i}"></div>`).join('');
+  }
+ 
+  function showReveal(data, players, idx, isHost) {
+    const sorted = [...players].sort((a,b) => a.joinedAt - b.joinedAt);
+    const player = sorted[idx];
+    if (!player) return;
+ 
+    const isMe = player.name === myName;
+    const initial = player.name[0].toUpperCase();
+ 
+    document.getElementById('revealAvatar').textContent = initial;
+    document.getElementById('revealNameBig').textContent = player.name;
+    document.getElementById('revealCounter').textContent = `${idx+1} von ${sorted.length}`;
+ 
+    // Reset card
+    document.getElementById('revealFront').style.display = 'flex';
+    document.getElementById('revealBack').style.display  = 'none';
+    document.getElementById('revealCard').style.cursor   = isMe ? 'pointer' : 'default';
+ 
+    // Dots
+    sorted.forEach((_,i) => {
+      const d = document.getElementById('dot-'+i);
+      if (!d) return;
+      d.className = 'rdot' + (i < idx ? ' done' : i === idx ? ' active' : '');
+    });
+ 
+    window._revealReady = isMe;
+    window._revealData  = { data, players, idx, isHost };
+  }
+ 
+  window.flipReveal = function() {
+    if (!window._revealReady) return;
+    const { data, players, idx } = window._revealData;
+    const sorted = [...players].sort((a,b) => a.joinedAt - b.joinedAt);
+    const player = sorted[idx];
+    const roles  = data.roles || {};
+    const role   = roles[player.name] || 'wahr';
+    const isLie  = role === 'luege';
+ 
+    const roleBig  = document.getElementById('roleBig');
+    const roleDesc = document.getElementById('roleDesc');
+    roleBig.textContent  = isLie ? 'LÜGE' : 'WAHR';
+    roleBig.className    = 'role-big ' + (isLie ? 'lie' : 'truth');
+    roleDesc.textContent = isLie
+      ? 'Du musst lügen — ohne aufzufliegen!'
+      : 'Antworte ehrlich auf die Frage.';
+ 
+    document.getElementById('revealFront').style.display = 'none';
+    document.getElementById('revealBack').style.display  = 'flex';
+    window._revealReady = false;
+  };
+ 
+  window.nextReveal = function() {
+    const { data, players, isHost } = window._revealData;
+    const sorted = [...players].sort((a,b) => a.joinedAt - b.joinedAt);
+    revealIndex++;
+    if (revealIndex < sorted.length) {
+      showReveal(data, sorted, revealIndex, isHost);
+      // Sync index so everyone sees same counter
+      if (isHost) update(ref(db, 'lobbies/' + code), { revealIndex });
+    } else {
+      // All done → move to question
+      if (isHost) update(ref(db, 'lobbies/' + code), { phase: 'question' });
+    }
+  };
+ 
+  // ── QUESTION ────────────────────────────────────────────────────
+  async function setupQuestion(data, players, isHost) {
+    document.getElementById('phaseQuestion').classList.add('active');
+    document.getElementById('qLoading').style.display = 'flex';
+    document.getElementById('qText').style.display    = 'none';
+    document.getElementById('btnStartDiscuss').style.display = 'none';
+    document.getElementById('waitDiscuss').style.display = 'none';
+ 
+    // Order strip
+    const shuffled = [...players].sort(() => Math.random() - 0.5);
+    document.getElementById('orderStrip').innerHTML = shuffled.map((p,i) => `
+      <div class="order-chip"><span class="order-num">${i+1}</span>${p.name}</div>
+    `).join('');
+ 
+    // If question already generated, show it
+    if (data.currentQuestion) {
+      showQuestion(data.currentQuestion, isHost);
+      return;
+    }
+ 
+    // Host generates question
+    if (isHost) {
+      let q = '';
+      try {
+        const res = await fetch('/api/generate-question', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ category: data.category })
+        });
+        const json = await res.json();
+        q = json.question;
+      } catch {
+        q = fallback(data.category);
+      }
+      await update(ref(db, 'lobbies/' + code), { currentQuestion: q });
+      // Firebase listener will call setupQuestion again with question set
+    } else {
+      // Guest: wait for host to set question (Firebase will re-trigger)
+    }
+  }
+ 
+  function showQuestion(q, isHost) {
+    document.getElementById('qLoading').style.display = 'none';
+    document.getElementById('qText').style.display    = 'block';
+    document.getElementById('qText').textContent      = q;
+    document.getElementById('btnStartDiscuss').style.display = isHost ? 'block' : 'none';
+    document.getElementById('waitDiscuss').style.display     = isHost ? 'none'  : 'block';
+  }
+ 
+  window.hostAction = function(action) {
+    if (action === 'startDiscuss') {
+      update(ref(db, 'lobbies/' + code), { phase: 'discuss', timerStart: Date.now() });
+    }
+    if (action === 'skipTimer') {
+      clearInterval(timerInterval);
+      update(ref(db, 'lobbies/' + code), { phase: 'vote' });
+    }
+    if (action === 'nextRound') {
+      const next = lobbyData.currentRound + 1;
+      update(ref(db, 'lobbies/' + code), {
+        currentRound: next,
+        phase: 'roles',
+        currentQuestion: null,
+        votes: null,
+        roles: null,
+        revealIndex: 0
+      });
+    }
+    if (action === 'showEnd') {
+      update(ref(db, 'lobbies/' + code), { phase: 'end' });
+    }
+  };
+ 
+  // ── DISCUSS ─────────────────────────────────────────────────────
+  function setupDiscuss(data, isHost) {
+    document.getElementById('phaseDiscuss').classList.add('active');
+    document.getElementById('discussQ').textContent = `"${data.currentQuestion}"`;
+    document.getElementById('btnSkipTimer').style.display = isHost ? 'block' : 'none';
+ 
+    const TOTAL = 60;
+    const elapsed = data.timerStart ? Math.floor((Date.now() - data.timerStart) / 1000) : 0;
+    let remaining = Math.max(0, TOTAL - elapsed);
+ 
+    function tick() {
+      document.getElementById('timerNum').textContent = remaining;
+      const offset = CIRC * (1 - remaining / TOTAL);
+      const arc = document.getElementById('timerArc');
+      arc.style.strokeDashoffset = offset;
+      arc.style.stroke = remaining <= 10 ? 'var(--red)' : remaining <= 20 ? 'var(--orange)' : 'var(--orange)';
+    }
+ 
+    tick();
+    timerInterval = setInterval(() => {
+      remaining--;
+      tick();
+      if (remaining <= 0) {
+        clearInterval(timerInterval);
+        if (isHost) update(ref(db, 'lobbies/' + code), { phase: 'vote' });
+      }
+    }, 1000);
+  }
+ 
+  // ── VOTE ─────────────────────────────────────────────────────────
+  function setupVote(data, players, isHost) {
+    document.getElementById('phaseVote').classList.add('active');
+    hasVoted = false;
+ 
+    const grid = document.getElementById('voteGrid');
+    // Can't vote for yourself
+    const others = players.filter(p => p.name !== myName);
+    grid.innerHTML = others.map(p => `
+      <button class="vote-btn" data-name="${p.name}" onclick="castVote('${p.name}', this)">${p.name}</button>
+    `).join('');
+ 
+    document.getElementById('waitingVotes').style.display = 'none';
+    document.getElementById('voteStatus').textContent = '';
+ 
+    updateVoteAvatars(data, players);
+  }
+ 
+  window.castVote = function(targetName, btn) {
+    if (hasVoted) return;
+    hasVoted = true;
+    myVote = targetName;
+ 
+    document.querySelectorAll('.vote-btn').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+    document.getElementById('voteStatus').textContent = `Du hast für ${targetName} gestimmt`;
+ 
+    // Store vote
+    update(ref(db, 'lobbies/' + code + '/votes'), { [myId]: targetName });
+ 
+    document.getElementById('voteGrid').style.opacity = '0.5';
+    document.getElementById('waitingVotes').style.display = 'block';
+  };
+ 
+  function updateVoteAvatars(data, players) {
+    const votes = data.votes || {};
+    const voteCount = Object.keys(votes).length;
+    const total = players.length;
+ 
+    document.getElementById('voteAvatars').innerHTML = players
+      .sort((a,b) => a.joinedAt - b.joinedAt)
+      .map(p => {
+        const voted = Object.keys(votes).some(id => {
+          const snap = data.players?.[id];
+          return snap?.name === p.name;
+        });
+        return `<div class="w-avatar ${voted ? 'done' : ''}">${p.name[0]}</div>`;
+      }).join('');
+ 
+    document.getElementById('voteCountLabel').textContent = `${voteCount} von ${total} haben gevoted`;
+ 
+    // Host auto-advances when all voted
+    if (voteCount >= total && data.host === myId && currentPhase === 'vote') {
+      clearTimeout(window._autoAdvance);
+      window._autoAdvance = setTimeout(() => {
+        processResult(data, players);
+      }, 800);
+    }
+  }
+ 
+  // ── RESULT ───────────────────────────────────────────────────────
+  function processResult(data, players) {
+    const votes  = data.votes || {};
+    const roles  = data.roles || {};
+    const liars  = Object.entries(roles).filter(([,r]) => r === 'luege').map(([n]) => n);
+ 
+    // Tally votes by name
+    const tally = {};
+    Object.values(votes).forEach(name => {
+      tally[name] = (tally[name] || 0) + 1;
+    });
+ 
+    let maxVotes = 0;
+    let accused  = [];
+    Object.entries(tally).forEach(([name, count]) => {
+      if (count > maxVotes) { maxVotes = count; accused = [name]; }
+      else if (count === maxVotes) accused.push(name);
+    });
+ 
+    const caught = liars.some(l => accused.includes(l));
+ 
+    // Update scores
+    const scoreUpdates = {};
+    if (caught) {
+      liars.forEach(l => {
+        const pid = Object.entries(data.players).find(([,p]) => p.name === l)?.[0];
+        if (pid) scoreUpdates[`players/${pid}/score`] = (data.players[pid].score || 0) + 2;
+      });
+    } else {
+      players.filter(p => !liars.includes(p.name)).forEach(p => {
+        const pid = Object.entries(data.players).find(([,pl]) => pl.name === p.name)?.[0];
+        if (pid) scoreUpdates[`players/${pid}/score`] = (data.players[pid].score || 0) + 1;
+      });
+    }
+ 
+    update(ref(db, 'lobbies/' + code), {
+      ...scoreUpdates,
+      phase: 'result',
+      resultCaught: caught,
+      resultLiars: liars.join(','),
+      resultAccused: accused.join(',')
+    });
+  }
+ 
+  function setupResult(data, players, isHost) {
+    document.getElementById('phaseResult').classList.add('active');
+ 
+    const caught  = data.resultCaught;
+    const liars   = (data.resultLiars || '').split(',').filter(Boolean);
+    const accused = (data.resultAccused || '').split(',').filter(Boolean);
+ 
+    const pill    = document.getElementById('resultPill');
+    const big     = document.getElementById('resultBig');
+    const card    = document.getElementById('resultCard');
+    const reveal  = document.getElementById('liarReveal');
+ 
+    if (caught) {
+      pill.className = 'ptag-pill red';
+      big.textContent = 'Erwischt!';
+      big.style.color = 'var(--red)';
+      card.innerHTML  = liars.map(l => `
+        <div class="drink-row">
+          <span style="font-size:22px">🍺🍺</span>
+          <span class="drink-name">${l}</span>
+          <span class="drink-amount">trinkt 2×</span>
+        </div>
+      `).join('');
+    } else {
+      pill.className = 'ptag-pill blue';
+      big.textContent = 'Entkommen!';
+      big.style.color = 'var(--blue)';
+      const innocents = players.filter(p => !liars.includes(p.name));
+      card.innerHTML = innocents.map(p => `
+        <div class="drink-row">
+          <span style="font-size:22px">🍺</span>
+          <span class="drink-name">${p.name}</span>
+          <span class="drink-amount">trinkt 1×</span>
+        </div>
+      `).join('');
+    }
+ 
+    reveal.innerHTML = `<strong>Der Lügner war:</strong> ${liars.join(', ')}`;
+ 
+    const isLast = data.currentRound >= data.rounds;
+    document.getElementById('btnNextRound').style.display = isHost && !isLast ? 'block' : 'none';
+    document.getElementById('btnShowEnd').style.display   = isHost && isLast  ? 'block' : 'none';
+    document.getElementById('waitNext').style.display     = !isHost ? 'block' : 'none';
+  }
+ 
+  // ── END ──────────────────────────────────────────────────────────
+  function setupEnd(data, players) {
+    document.getElementById('phaseEnd').classList.add('active');
+    const sorted = [...players].sort((a,b) => (a.score||0) - (b.score||0));
+    document.getElementById('finalScores').innerHTML = sorted.map((p, i) => `
+      <div class="score-row ${i===0?'top':''}">
+        <span class="score-rank">${i===0?'🏆':i+1+'.'}</span>
+        <span class="score-name">${p.name}</span>
+        <span class="score-val">${p.score||0} Schlucke</span>
+      </div>
+    `).join('');
+  }
+ 
+  // ── FALLBACK QUESTIONS ───────────────────────────────────────────
+  function fallback(cat) {
+    const q = {
+      harmlos: ['Hast du heute schon geduscht?','Schläfst du manchmal mit Socken?','Hast du schonmal ein Geheimnis verraten?','Hast du heute jemanden angelogen?','Hast du schonmal ein Essen so getan als ob es dir schmeckt?'],
+      cringe:  ['Hast du schonmal jemanden gegoogelt den du attraktiv findest?','Hast du schonmal jemandes Story mehrfach angeschaut?','Hast du schonmal ein Profilbild wegen einer Person geändert?','Hast du schonmal jemanden auf Social Media gestalkt?','Hast du schonmal eine Nachricht getippt und dann doch nicht abgeschickt?'],
+      '18+':   ['Hast du schonmal jemanden im Raum attraktiv gefunden?','Hast du schonmal in einer Beziehung gelogen?','Hast du schonmal beim ersten Date geflunkert?','Hast du schonmal jemanden geküsst den du nicht mochtest?','Hast du schonmal jemanden für jemand anderen gehalten beim Küssen?']
+    };
+    const arr = q[cat] || q['harmlos'];
+    return arr[Math.floor(Math.random() * arr.length)];
+  }
+ 
+</script>
+</body>
+</html>
